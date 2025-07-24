@@ -16,20 +16,23 @@ if archivo:
     df = pd.read_excel(archivo)
 
     # Normalizar nombres de columnas
-    df.columns = df.columns.str.strip().str.lower().str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
+    df.columns = df.columns.str.strip().str.lower().str.normalize('NFKD') \
+        .str.encode('ascii', errors='ignore').str.decode('utf-8')
 
+    # Asegurar tipos de datos correctos
     df["direccion"] = df["direccion"].fillna("").astype(str)
     df["cliente"] = df["cliente"].astype(str)
     df["latitud"] = df["latitud"].astype(float)
     df["longitud"] = df["longitud"].astype(float)
     df["furgon"] = df["furgon"].astype(str)
 
-    # Agrupar por ubicación
+    # Agrupar por ubicación + furgón
     df_grouped = df.groupby(["latitud", "longitud", "furgon"]).agg({
         "cliente": "count",
         "direccion": "first"
     }).reset_index().rename(columns={"cliente": "pedidos"})
 
+    # Crear mapa
     mapa = folium.Map(location=[LAT_ORIGEN, LON_ORIGEN], zoom_start=12)
     colores = {"1": "red", "2": "blue", "3": "green"}
 
@@ -49,13 +52,16 @@ if archivo:
             icon=folium.Icon(color=colores.get(row["furgon"], "gray"))
         ).add_to(mapa)
 
+    # Mostrar mapa en Streamlit
     st.markdown("### 🗺️ Mapa de Rutas")
     folium_static(mapa)
 
+    # Editor de asignación de furgones
     st.markdown("### ✏️ Editar asignación de clientes a furgones")
     df_editable = st.data_editor(df.copy(), num_rows="dynamic")
     df_editable["furgon"] = df_editable["furgon"].astype(str)
 
+    # Exportar resultado
     st.download_button(
         label="📥 Descargar asignación editada (Excel)",
         data=df_editable.to_excel(index=False),
